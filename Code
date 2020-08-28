@@ -1,0 +1,109 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+import numpy as np
+import statistics
+import scipy.io
+
+# Importing data from datasets.
+mat = scipy.io.loadmat(r"C:\Users\raj\Downloads\mnist_data.mat")
+target_7     = mat['trX'][0:6265]
+target_8     = mat['trX'][6265:]
+target       = mat['trX']
+target_label = mat['trY']
+tester       = mat['tsX']
+tester_label = mat['tsY']
+
+# Calculating probability P(Y) for both 7 and 8.
+prob_7 = target_7.shape[0]/(target_7.shape[0]+target_8.shape[0])
+prob_8 = 1-prob_7
+
+# Calculating mean and standard deviation of training sets(7, 8) and testing set.
+target_7_u   = target_7.mean(axis = 1)
+target_8_u   = target_8.mean(axis = 1)
+target_7_std = target_7.std(axis = 1)
+target_8_std = target_8.std(axis = 1)
+testing_mean = tester.mean(axis = 1)
+testing_std  = tester.std(axis = 1)
+
+# Calculating probability P(X/Y)*P(Y) using Guassian probability density formula for 7 and 8 against testing dataset.
+predicted_lab = []
+def guassian_prob(x, mean, sigma):
+    g = (np.exp(-np.power(x -mean , 2.) / (2 * np.power(sigma, 2.)))/(np.power(2*(np.pi), 1/2)*sigma))
+    return g
+post_prob_7 = (prob_7)*guassian_prob(testing_mean, target_7_u.mean(), target_7_u.std())*guassian_prob(testing_std, target_7_std.mean(), target_7_std.std())
+post_prob_8 = (prob_8)*guassian_prob(testing_mean, target_8_u.mean(), target_8_u.std())*guassian_prob(testing_std, target_8_std.mean(), target_8_std.std())
+
+# Comparing the probabilities for every image.
+for i in range(0, post_prob_7.size):
+    if(post_prob_7[i]>post_prob_8[i]):
+        predicted_lab.append(0)
+    else:
+        predicted_lab.append(1)
+predicted_labe  = np.asarray(predicted_lab)
+predicted_label = np.reshape(predicted_labe, (1,predicted_labe.shape[0]))
+
+# Calculating accuracy percentage for naive bayes.
+count   = 0
+count_7 = 0
+count_8 = 0
+for a in range(0, tester_label.shape[1]):
+    if(tester_label[0][a] == 0 and predicted_label[0][a] == 0):
+        count   +=1
+        count_7 += 1
+    elif(tester_label[0][a] == 1 and predicted_label[0][a] == 1):
+        count   += 1
+        count_8 += 1
+accuracy_7 = count_7*100/(1028)
+accuracy_8 = count_8*100/(974)
+accuracy   = count*100/(2002)
+print("Accuracy for predicting '7' through Naive Bayes is ",accuracy_7,"%")
+print("Accuracy for predicting '8' through Naive Bayes is ",accuracy_8,"%")
+print("Accuracy through Naive Bayes is ",accuracy,"%")
+
+# Logistic Regression
+
+# Initiate w with values 0 having same shape as x.
+def logistic_regression(x, y, n, iteration, limit=False):
+    w = np.random.randn(x.shape[1])
+# calculate the value of wx and then calculate sigmoid formula.
+    for i in range(iteration):
+        grad_ascent = np.dot(x.T, (y-sigmoid(np.dot(x, w))))
+        w           = w + (n * grad_ascent)
+    return w
+
+def sigmoid(wx):
+    return 1 / (1 + np.exp(-wx))
+
+# Define training and testing datasets.
+featr_X = np.column_stack((target.mean(axis=1), target.std(axis=1)))
+test_X = np.column_stack((tester.mean(axis=1), tester.std(axis=1)))
+
+# Calculate the argmax of w.
+w = logistic_regression(featr_X, np.squeeze(target_label.T), n=0.001, iteration=10000,
+                             limit=True)
+predict_lab_logist = np.dot(test_X, w.T)
+pred = []
+for i in range(0, predict_lab_logist.size):
+    if(predict_lab_logist[i]>0.5):
+        pred.append(1)
+    else:
+        pred.append(0)
+pred_l  = np.asarray(pred)
+pred_lb = np.reshape(pred_l, (1,pred_l.shape[0]))
+count_l   = 0
+count_7_l = 0
+count_8_l= 0
+for a in range(0, tester_label.shape[1]):
+    if(tester_label[0][a] == 0 and pred_lb[0][a] == 0):
+        count_l   +=1
+        count_7_l += 1
+    elif(tester_label[0][a] == 1 and pred_lb[0][a] == 1):
+        count_l   += 1
+        count_8_l += 1
+accuracy_7_l = count_7_l*100/(1028)
+accuracy_8_l = count_8_l*100/(974)
+accuracy_l   = count_l*100/(2002)
+print("Accuracy for predicting '7' through Logistic Regression ",accuracy_7_l,"%")
+print("Accuracy for predicting '8' through Logistic Regression is ",accuracy_8_l,"%")
+print("Accuracy through Logistic Regression is ",accuracy_l,"%")
